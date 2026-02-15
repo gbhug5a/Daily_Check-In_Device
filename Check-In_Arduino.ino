@@ -1,4 +1,6 @@
 /*
+  v2.0
+
   This is code for the 5V 16MHz Arduino Pro Mini used in the Check-In Project.
   The project also uses a DS3231 RTC, a 16X2 LCD-I2C display, a rotary encoder,
   and a Lolin D1 Mini with an ESP8266 MCU. You can set up one, two or three
@@ -7,6 +9,11 @@
   alarm, and if still no check-in, it triggers a Pushover push notice to the
   phone previously set up to receive it.  See the included PDF file for a
   detailed explanation.
+	
+	V2.0 - most strings moved to PROGMEM.
+
+  Arduino IDE v1.8.19
+  LiquidCrystal_I2C library:  https://github.com/markub3327/LiquidCrystal_I2C
 */
 
 // Globals and defines for core and LCD display
@@ -15,16 +22,17 @@
 #include <LiquidCrystal_I2C.h>
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+
 long oldmillis, debmillis, pulsemillis;
 bool spaceFlag;
-char dateTime[] = "<YY/MM/DD hh:mm";    // date and time fields for display
-char *segment[] = {
-  (char*)"<",
-  (char*)"YY",
-  (char*)"MM",
-  (char*)"DD",
-  (char*)"hh",
-  (char*)"mm"
+
+const char segment[][3] PROGMEM = {
+  "<",
+  "YY",
+  "MM",
+  "DD",
+  "hh",
+  "mm"
 };
 
 char ap[] = "AP";                       // AM/PM
@@ -41,23 +49,24 @@ byte AP;
 #define Paused 6
 #define DoneToday 7
 
-char *stateText1[] = {                  // display current State - 1st line
-  (char*)"Waiting for",
-  (char*)"Checked in",
-  (char*)"ALARM!!!",
-  (char*)"PushSend FAILED1",
-  (char*)"PushSend FAILED2",
-  (char*)"Check-in FAILED!",
-  (char*)"Paused---",
-  (char*)"Done for today"
+const char stateText1[][17] PROGMEM = { // display current State - 1st line
+  "Waiting for",
+  "Checked in",
+  "ALARM!!!",
+  "PushSend FAILED1",
+  "PushSend FAILED2",
+  "Check-in FAILED!",
+  "Paused---",
+  "Done for today"
 };
-char *stateText2[] = {                  // display current State - 2nd line
-  (char*)"chk-in by ",
-  (char*)"for ",
-  (char*)"PLEASE CHECK IN!",
-  (char*)"PLEASE CHECK IN!",
-  (char*)"PLEASE CHECK IN!",
-  (char*)"Push Notice SENT"
+
+const char stateText2[][17] PROGMEM = { // display current State - 2nd line
+  "chk-in by ",
+  "for ",
+  "PLEASE CHECK IN!",
+  "PLEASE CHECK IN!",
+  "PLEASE CHECK IN!",
+  "Push Notice SENT"
 };
 
 void Menu0();                           // declare functions for the Menu options
@@ -76,19 +85,19 @@ void (*menuArray[]) () = {Menu0, Menu1, Menu2, Menu3, Menu4,
                           Menu5, Menu6, Menu7, Menu8, Menu9, Menu10
                          };
 
-char *menuText[] = {                    // pointers to Menu options
-  (char*)"SET DATE/TIME",               // set RTC date and time
-  (char*)"SET CHKIN HOURS",             // set one to three daily checkin hours
-  (char*)"AUTO ADJUST DST",             // enable auto adjust for daylight saving
-  (char*)"SET BUZZER TIME",             // set alarm buzzer time if check-in missed
-  (char*)"SET QUICK TRIES",             // number of immediate tries to send PUSH
-  (char*)"ONE-HOUR RETRIES",            // number of retries on successive hours if PUSH still fails
-  (char*)"SET WIFI & KEYS",             // set WiFi and Pushover keys
-  (char*)"TESTPUSH TO ME",              // send test PUSH notification to my phone
-  (char*)"TESTPUSH TO ALL",             // send to group
-  (char*)"TRIM RTC SPEED",              // adjust RTC oscillation speed
-  (char*)"COINCELL VOLTAGE",            // check voltage of RTC backup coin cell
-  (char*)"EXIT MENU"
+const char menuText[][17] PROGMEM = {   // Menu options
+  "SET DATE/TIME",                      // set RTC date and time
+  "SET CHKIN HOURS",                    // set one to three daily checkin hours
+  "AUTO ADJUST DST",                    // enable auto adjust for daylight saving
+  "SET BUZZER TIME",                    // set alarm buzzer time if check-in missed
+  "SET QUICK TRIES",                    // number of immediate tries to send PUSH
+  "ONE-HOUR RETRIES",                   // number of retries on successive hours if PUSH still fails
+  "SET WIFI & KEYS",                    // set WiFi and Pushover keys
+  "TESTPUSH TO ME",                     // send test PUSH notification to my phone
+  "TESTPUSH TO ALL",                    // send to group
+  "TRIM RTC SPEED",                     // adjust RTC oscillation speed
+  "COINCELL VOLTAGE",                   // check voltage of RTC backup coin cell
+  "EXIT MENU"
 };
 
 byte menuIndex;
@@ -163,7 +172,7 @@ byte maskSave;                          // save state of PortD PCI mask - PCMSK2
 const byte cellCtrlPin = A1;            // switches transistor to read coin cell voltage
 const byte cellReadPin = A2;            // read voltage here
 const byte alarmPin = 3;                // pin to receive RTC alarm signal
-volatile bool alarmFlag;                // indicates RTC alarm trigger has triggered
+volatile bool alarmFlag;                // indicates RTC alarm has triggered
 const int RTCaddr = 0x68;               // I2C address of RTC
 const int Control = 0x0E;               // Control register address
 const int Status = 0x0F;                // Status register address
@@ -308,9 +317,9 @@ void writeAlarm() {                     // set up next alarm on RTC
 
 void displayState() {                   // display current State
   lcd.clear();
-  lcd.print(stateText1[State]);
+  lcd.print((__FlashStringHelper*)&stateText1[State]);
   lcd.setCursor(0, 1);
-  if (State < Paused) lcd.print(stateText2[State]);
+  if (State < Paused) lcd.print((__FlashStringHelper*)&stateText2[State]);
   if (State < Alarm) {
     zeroFill (clock12(nextAlarm));
     lcd.print(":00");
@@ -329,7 +338,7 @@ void doMenu() {                         // encoder button has been pressed
   menuIndex = 0;
   while (1) {
     lcd.clear();
-    lcd.print(menuText[menuIndex]);
+    lcd.print((__FlashStringHelper*)&menuText[menuIndex]);
     while (!(buttonFlag || change));    // wait for something to happen
     if (change == 1) {                  // encoder turned CW
       change = 0;
@@ -386,7 +395,7 @@ byte clock12 (byte hour24) {            // convert 24-hour time to 12-hour
 void Menu0() {                          // set date and time
   if (!pwrFlag) readTime();             // if coin cell still good, read in current time from RTC
   lcd.clear();
-  lcd.print(dateTime);
+  lcd.print(F("<YY/MM/DD hh:mm"));
   changeFlag = 0;                       // have we changed the time at all
   i = 0;  row = 0;                      // start at "<" exit position
 
@@ -474,7 +483,7 @@ void blinker() {                        // switch between value and blank
       oldmillis = millis();
       lcd.setCursor(column[i], row);
       if (spaceFlag) {
-        if (row == 0) lcd.print(segment[i]);
+        if (row == 0) lcd.print((__FlashStringHelper*)&segment[i]);
         else {
           if (i == 4) zeroFill(clock12(value[i]));
           else zeroFill(value[i]);
@@ -489,7 +498,7 @@ void blinker() {                        // switch between value and blank
     }
     if (buttonFlag || change) {
       lcd.setCursor(column[i], row);
-      if (row == 0) lcd.print(segment[i]);
+      if (row == 0) lcd.print((__FlashStringHelper*)&segment[i]);
       else {
         if (i == 4) zeroFill(clock12(value[i]));
         else zeroFill(value[i]);
@@ -504,10 +513,10 @@ Again:                                  // Goto label - hours not right
   lcd.clear();
   for (i = 1; i < 4; i++) {
     lcd.setCursor(0, 0);
-    lcd.print("Check-in hour "); lcd.print(i);  // 24-hour internally, but dislayed as 12A/P
+    lcd.print(F("Check-in hour ")); lcd.print(i);  // 24-hour internally, but dislayed as 12A/P
     while (1) {
       lcd.setCursor(0, 1);
-      if (*setting[i] == 24) lcd.print("--    ");
+      if (*setting[i] == 24) lcd.print(F("--    "));
       else {
         zeroFill(clock12(*setting[i]));
         lcd.print(":00");
@@ -534,13 +543,13 @@ Again:                                  // Goto label - hours not right
   if ((hour3 <= hour2) && (hour3 != 24)) goto Again;        // 3rd must be > 2nd
 }
 
-void Menu2() {                               // Auto-adjust for DST?
-  lcd.clear();                               // default = yes
-  lcd.print("Auto adjust DST");
+void Menu2() {                          // Auto-adjust for DST?
+  lcd.clear();                          // default = yes
+  lcd.print(F("Auto adjust DST"));
   while (1) {
     lcd.setCursor(0, 1);
-    if (DST) lcd.print("Yes");          // 1 = yes, 0 = no
-    else lcd.print("No ");
+    if (DST) lcd.print(F("Yes"));       // 1 = yes, 0 = no
+    else lcd.print(F("No "));
     while (!(buttonFlag || change));
     if (change) {
       change = 0;
@@ -553,11 +562,11 @@ void Menu2() {                               // Auto-adjust for DST?
   }
 }
 
-void Menu3() {                               // set buzzer alarm time
+void Menu3() {                          // set buzzer alarm time
   lcd.clear();
-  lcd.print("Buzzer Time");
-  lcd.setCursor(0,1);
-  lcd.print("    seconds");
+  lcd.print(F("Buzzer Time"));
+  lcd.setCursor(0, 1);
+  lcd.print(F("    seconds"));
   while (1) {
     lcd.setCursor(0, 1);
     if (buzzerTime < 100) lcd.print(" ");
@@ -568,7 +577,7 @@ void Menu3() {                               // set buzzer alarm time
       change = 0;
       if (buzzerTime >= 250) buzzerTime = 1;
       else {
-        if (buzzerTime >= 110) buzzerTime += 20;
+        if (buzzerTime >= 110) buzzerTime += 20;          // bigger value = bigger jumps
         else if (buzzerTime >= 50) buzzerTime += 10;
         else if (buzzerTime >= 10) buzzerTime += 5;
         else buzzerTime++;
@@ -591,9 +600,9 @@ void Menu3() {                               // set buzzer alarm time
   }
 }
 
-void Menu4() {
+void Menu4() {                          // Number of quick tries to send Push notice
   lcd.clear();
-  lcd.print("Quick Tries");
+  lcd.print(F("Quick Tries"));
   while (1) {
     lcd.setCursor(0, 1);
     lcd.print (quickTries);
@@ -615,9 +624,9 @@ void Menu4() {
   }
 }
 
-void Menu5() {
+void Menu5() {                          // Try again after one hour
   lcd.clear();
-  lcd.print("One Hour Retries");
+  lcd.print(F("One Hour Retries"));
   while (1) {
     lcd.setCursor(0, 1);
     lcd.print (oneHourRetries);
@@ -639,15 +648,15 @@ void Menu5() {
   }
 }
 
-void Menu6() {                              // open access point to set wifi and keys
+void Menu6() {                               // open access point to set wifi and keys
   success = false; stopFlag = false;
   pinMode(POSTresultPin, OUTPUT);            // will be LOW to open config AP
   digitalWrite(D1powerPin, LOW);             // turn on power to D1 Mini
   lcd.clear();
-  lcd.print("Connect to WiFi:");
+  lcd.print(F("Connect to WiFi:"));
   lcd.setCursor(0, 1);
-  lcd.print("'CHECKIN_KEYS'");
-  delay(4000);                               // time for D! Mini to boot and settle
+  lcd.print(F("'CHECKIN_KEYS'"));
+  delay(4000);                               // time for D1 Mini to boot and settle
   pinMode(POSTresultPin, INPUT);             // convert to input
   while (1) {
     if (buttonFlag || checkinFlag || pauseFlag) {  // any button press stops process
@@ -666,9 +675,9 @@ void Menu6() {                              // open access point to set wifi and
   }
   digitalWrite(D1powerPin, HIGH);            // turn off D1 Mini
   lcd.clear();
-  if (success) lcd.print ("...Success");
-  else if (stopFlag) lcd.print ("...Stopped");
-  else lcd.print("...Failed");
+  if (success) lcd.print (F("...Success"));
+  else if (stopFlag) lcd.print (F("...Stopped"));
+  else lcd.print(F("...Failed"));
   delay(3000);                               // display for 3 seconds
 }
 
@@ -687,13 +696,13 @@ void Menu8() {                               // send test push notice to all
 void sendPush() {                            // send push notice
   success = false; stopFlag = false;
   lcd.clear();
-  lcd.print("Sending..");
+  lcd.print(F("Sending.."));
   if (!what) pinMode(whatPin, OUTPUT);       // will be LOW
   if (!who) pinMode(whoPin, OUTPUT);
   digitalWrite(D1powerPin, LOW);             // turn on power to D1 Mini
   delay(4000);
   oldmillis = millis();
-  while ((millis() - oldmillis) < 30000) {   // allow 60 seconds
+  while ((millis() - oldmillis) < 30000) {   // allow 30 seconds
     delay(1000);                             // check each second
     if (buttonFlag || checkinFlag || pauseFlag) {  // any button press stops process
       clearPins();
@@ -712,16 +721,16 @@ void sendPush() {                            // send push notice
   pinMode(whoPin, INPUT);
   digitalWrite(D1powerPin, HIGH);            // turn off D1 Mini
   lcd.clear();
-  if (success) lcd.print ("...Success");
-  else if (stopFlag) lcd.print ("...Stopped");
-  else lcd.print("...Failed");
+  if (success) lcd.print (F("...Success"));
+  else if (stopFlag) lcd.print (F("...Stopped"));
+  else lcd.print(F("...Failed"));
   delay (3000);
 }
 
 void Menu9() {                               // adjust Aging register on RTC
   Aging = readReg(0x10);                     // intuitive + = faster
   lcd.clear();                               // (opposite of Aging register)
-  lcd.print("SETTING = "); lcd.print(-Aging);
+  lcd.print(F("SETTING = ")); lcd.print(-Aging);
   oldmillis = millis();
   while (1) {
     if (change == 0xFF) {                    // opposite of usual turn direction
@@ -733,7 +742,7 @@ void Menu9() {                               // adjust Aging register on RTC
     if (change) {
       change = 0;
       lcd.clear();
-      lcd.print("SETTING = "); lcd.print(-Aging);
+      lcd.print(F("SETTING = ")); lcd.print(-Aging);
     }
     if (buttonFlag) {
       debounce();
@@ -757,7 +766,7 @@ void Menu9() {                               // adjust Aging register on RTC
   writeReg(0x10, Aging);
 }
 
-void Menu10() {                               // display/adjust RTC coin cell voltage
+void Menu10() {                              // display/adjust RTC coin cell voltage
   EEPROM.get (0, IRV);                       // calibrated IRV stored in EEPROM
   int eepromIRV = IRV;
   if ((IRV < 980) || (IRV > 1200)) IRV = 1080;
@@ -766,9 +775,9 @@ void Menu10() {                               // display/adjust RTC coin cell vo
     doVoltage();                             // compare results to your meter,
     lcd.clear();                             //   and adjust IRV to match meter
     delay(1000);
-    lcd.print("BandGap = "); lcd.print(IRV); lcd.print("mV");
+    lcd.print(F("BandGap = ")); lcd.print(IRV); lcd.print("mV");
     lcd.setCursor(0, 1);
-    lcd.print("CoinBty = "); lcd.print(volts, 3); lcd.print("V");
+    lcd.print(F("CoinBty = ")); lcd.print(volts, 3); lcd.print("V");
     while (1) {                              // change IRV value
       while (!(buttonFlag || change));
       if (change == 0xFF) {
@@ -987,7 +996,7 @@ void setup() {
   pinMode(button, INPUT);
 
   EDGE = PINS;                          // identifies next pin-change interrupt as falling or rising
-  //    assume current state is low, so any change will be rising
+                                        //    assume current state is low, so any change will be rising
   if (PIND & PINS) {                    // but if actual current state is already high,
     EDGE = 0;                           //    make EDGE low
     INDEX = 3;                          //    and make "current" bits of INDEX match the current high state
@@ -1022,7 +1031,7 @@ void setup() {
 
   lcd.clear();
   alarmHour = bcd2dec(readReg(0x0C));   // latest alarm setting
-  if (ramGood == false) {              // if saved bytes not valid
+  if (ramGood == false) {               // if saved bytes not valid
     for (i = 0; i < 8; i++) {
       *setting[i] = settDefault[i];
     }
@@ -1066,7 +1075,7 @@ void setup() {
   }
   if (ramGood == false) newState();
 
-  if (ramGood) {                                 // how long has power been off
+  if (ramGood) {                                  // how long has power been off
     saveState = State;
     nextHour();                                   // calculate next check-in hour
     if ((saveState == PushSent) || (saveState == Paused)) {
@@ -1078,7 +1087,7 @@ void setup() {
         (alarmHour == nextAlarm)) {               //  current alarm hour same as next alarm
       State = CheckedIn;                          //  = stay checked in if brief power loss
     }
-    writeAlarm();                         // set new alarm hour
+    writeAlarm();                                 // set new alarm hour
     newState();
   }
 
@@ -1122,10 +1131,10 @@ void loop() {
 
   // waked up by a button press or RTC alarm
 
-  if (buttonFlag) {                   // trigger Menu
+  if (buttonFlag) {                     // trigger Menu
     debounce();
-    doMenu();                         // enter Menu
-    displayState();                   // back to current State
+    doMenu();                           // enter Menu
+    displayState();                     // back to current State
   }
 
   if (checkinFlag) {
@@ -1188,14 +1197,14 @@ void loop() {
       }
       stopFlag = false; success = false;
       unsigned long buzzTime = (unsigned long) (buzzerTime * 1000);
-      for (i = 0; i < quickTries; i++) {                // try buzzer and push notice again
+      for (i = 0; i < quickTries; i++) {       // try buzzer and push notice again
         displayState();
         oldmillis = millis(); pulsemillis = oldmillis; buzzState = 1;
         digitalWrite(buzzPin, buzzState);      // turn on buzzer
         while ((millis() - oldmillis) < buzzTime) {  // default 2 minutes
           clearPins();                         // test button, checkin and pause pins
           if (stopFlag) break;
-          if ((millis() - pulsemillis) > 250) {  // beep buzzer at 1Hz
+          if ((millis() - pulsemillis) > 250) {  // beep buzzer at 0.5Hz
             buzzState = !buzzState;
             digitalWrite(buzzPin, buzzState);
             pulsemillis = millis();
@@ -1207,7 +1216,7 @@ void loop() {
           sendPush();
         }
         if ((stopFlag == true) || (success == true)) break;
-      }                                         // for loop - try 5 times
+      }                                         // for loop - try quicktries times
       if (stopFlag == true) newHour();          // terminated by button push
       else if (success == true) {               // not terminated,
         State = PushSent;                       // but push was successfull
@@ -1221,8 +1230,8 @@ void loop() {
         else {
           if (State == PushFail1) State = PushFail2;
           if (State == Alarm) State = PushFail1;
-          incAlarm();                            // set alarm for one hour later
-          newState();                            // set new State
+          incAlarm();                           // set alarm for one hour later
+          newState();                           // set new State
         }
       }
     }
