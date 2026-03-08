@@ -1,5 +1,10 @@
 ## Daily Check-In Device
 
+v3.0 - The only change is to the schematic, where 1K series resistors are
+inserted into the GPIO connections between the Arduino Pro Mini and the
+Lolin D1 Mini.  This may not be necessary, but it complies with standard
+practice where the two MCUs operate at different voltages.
+
 V2.0 - In the sketch for the Pro Mini, most of the strings have been moved
 into PROGMEM, but there were no other changes.  The schematic has also been
 modified to add a 100nF decoupling capacitor at the 5V pin of the D1 Mini.
